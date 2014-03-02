@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ArcGIS Basemaps</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- Load Leaflet from their CDN -->
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.2/leaflet.js"></script>
+
+    <!-- Load a small bit of CSS and Javascript specifcally for these demos -->
+    <link rel="stylesheet" href="demo.css" />
+    <script src="demo.js"></script>
+
+    <!-- Load Esri Leaflet -->
+    <script src="esri-leaflet.js"></script>
+    <script src="http://code.jquery.com/jquery-2.1.0.min.js"></script>
+    <!-- Make the map fill the entire page -->
+    <style>
+      html, body, #map {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div class="demo-controls">
+      <h1 class="title expand" id="title" onclick="showControls();">ArcGIS Basemaps</h1>
+      <div class="control-container hide" id="controlContainer">
+        <button class="btn wide" onclick="setBasemap('Streets');">Streets</button></br>
+        <button class="btn wide" onclick="setBasemap('Imagery');">Imagery</button></br>
+        <button class="btn wide" onclick="setBasemap('Gray');">Gray</button></br>
+        <button class="btn wide" onclick="setBasemap('DarkGray');">Dark Gray</button></br>
+        <button class="btn wide" onclick="setBasemap('Topographic');">Topographic</button></br>
+        <button class="btn wide" onclick="setBasemap('NationalGeographic');">National Geographic</button></br>
+        <button class="btn wide" onclick="setBasemap('Oceans');">Oceans</button><br>
+        <button class="btn wide" onclick="setBasemap('Terrain');">Terrain</button>
+      </div>
+    </div>
+
+    <script>
+      var map = L.map('map').setView([43.666667,-79.416667], 10);
+
+
+      // Add ArcGIS Online Basemap - See http://resources.arcgis.com/en/help/arcgis-rest-api/
+      var layer = L.esri.basemapLayer("Topographic");
+      map.addLayer(layer);
+      var layerLabels;
+
+      var highlightStyle = {
+    color: '#2262CC', 
+    weight: 3,
+    opacity: 0.6,
+    fillOpacity: 0.65,
+    fillColor: '#2262CC'
+};
+
+    var defaultStyle = {
+            color: "#2262CC",
+            weight: 2,
+            opacity: 0.6,
+            fillOpacity: 0.1,
+            fillColor: "#2262CC"
+        };
+
+      $.ajax({
+        type: "POST",
+        url: "https://dl.dropboxusercontent.com/u/15769435/neighbourhoods.json",
+        dataType: 'json',
+        success: function (response) {
+            geojsonLayer = L.geoJson(response, {
+              onEachFeature: onEachFeature
+              }).addTo(map);
+              }
+          });
+
+      var onEachFeature = function(feature, layer) {
+        // Load the default style. 
+    layer.setStyle(defaultStyle);
+    // Create a self-invoking function that passes in the layer
+    // and the properties associated with this particular record.
+    (function(layer, properties) {
+      // Create a mouseover event
+      layer.on("mouseover", function (e) {
+        // Change the style to the highlighted version
+        layer.setStyle(highlightStyle);
+        // Create a popup with a unique ID linked to this record
+        var popup = $("<div></div>", {
+            id: "popup-" + properties.Name,
+            css: {
+                position: "absolute",
+                bottom: "85px",
+                left: "50%",
+                zIndex: 1002,
+                backgroundColor: "white",
+                padding: "8px",
+                border: "1px solid #ccc"
+            }
+        });
+        // Insert a headline into that popup
+        var hed = $("<div></div>", {
+            text: getHoodName(feature),
+            css: {fontSize: "16px", marginBottom: "3px"}
+        }).appendTo(popup);
+        // Add the popup to the map
+        popup.appendTo("#map");
+      });
+      // Create a mouseout event that undoes the mouseover changes
+      layer.on("mouseout", function (e) {
+        // Start by reverting the style back
+        layer.setStyle(defaultStyle); 
+        // And then destroying the popup
+        $("#popup-" + properties.Name).remove();
+      });
+      // Close the "anonymous" wrapper function, and call it while passing
+      // in the variables necessary to make the events work the way we want.
+    })(layer, feature.properties);
+};
+
+      function getHoodName(feature) {
+          var desc = feature.properties.Description;
+          var descSplit = desc.split("<td>HOOD</td>");
+          return descSplit[1].match(/([\w\d\s\-]+)/g)[2]
+      }
+
+      function setBasemap(mapType) {
+        // Add basemap tile layer
+        if (layer) {
+          map.removeLayer(layer);
+        }
+        layer = L.esri.basemapLayer(mapType);
+        map.addLayer(layer);
+        // Add labels layer
+        if (layerLabels) {
+          map.removeLayer(layerLabels);
+        }
+        if (mapType == "Gray" || mapType == "DarkGray" || mapType == "Imagery" || mapType == "Terrain") {
+          layerLabels = L.esri.basemapLayer(mapType+"Labels");
+          map.addLayer(layerLabels);
+        }
+      }
+    </script>
+  </body>
+</html>
